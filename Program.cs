@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -14,9 +14,20 @@ namespace IO_Project
     {
         static void Main(string[] args)
         {
-            int iterationCounter = 200;
-            int tasks = 4; // (imageSize % threadCounter) must be egual to 0, because of must of equal number of lines for every task
             int imageSize = 1024;
+            int iterationCounter = 200;
+            int tasks = 0;
+            try
+            {
+                Console.WriteLine("Enter number of tasks:");
+                tasks = Convert.ToInt32(Console.ReadLine());
+                if (imageSize % tasks != 0) throw new Exception("(imageSize % tasks) must be egual to 0, because of the need of equal number of lines for every task");
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine("Error: " + e.Message);
+            }
+            Console.WriteLine("-----------------------------------\n");
             int[,] image;
 
             int[,] imageSync;
@@ -94,7 +105,7 @@ namespace IO_Project
             return image;
         }
 
-        static int[,] CreateImage1(int size)
+        static int[,] CreateImageChess(int size)
         {
             int[,] image = new int[1 + size + 1, 1 + size + 1]; //padding
 
@@ -116,38 +127,31 @@ namespace IO_Project
 
             return image;
         }
-
-        static int[,] CalculateSync(int[,] before)
-        {
-            int[,] after = before;
-            int size = before.GetLength(0) - 2; //padding
-            for (int i = 1; i < size - 1; i++)
-            {
-                for (int j = 1; j < size - 1; j++)
-                {
-                    after[i, j] = (int)(before[i, j] * 0.6 + (before[i, j - 1] + before[i, j + 1] + before[i - 1, j] + before[i + 1, j]) * 0.1);
-                }
-            }
-            return after;
-        }
  
         static int[,] Sync(int[,] before, int iterationCounter)
         {
-            int[,] after = before;
+            int[,] after = new int[before.GetLength(0), before.GetLength(0)];
+            int size = before.GetLength(0) - 2; //padding
 
-            for (int i = 0; i < iterationCounter; i++)
+            for (int n = 0; n < iterationCounter; n++)
             {
-                after = CalculateSync(after);
+                for (int i = 1; i < size - 1; i++)
+                {
+                    for (int j = 1; j < size - 1; j++)
+                    {
+                        after[i, j] = (int)(before[i, j] * 0.6 + (before[i, j - 1] + before[i, j + 1] + before[i - 1, j] + before[i + 1, j]) * 0.1);
+                    }
+                }
             }
 
             return after;
         }
 
-        static void CalculateAsync(int[,] before, int[,] after, int threadCounter, int thread)
+        static void CalculateAsync(int[,] before, int[,] after, int tasks, int task)
         {
             int size = before.GetLength(0) - 2; //padding
-            int numberOfLinesPerThread = size / threadCounter;
-            int numberOfLine = thread * numberOfLinesPerThread;
+            int numberOfLinesPerTask = size / tasks;
+            int numberOfLine = task * numberOfLinesPerTask;
 
             for (int i = numberOfLine + 1; i < size; i++)
             {
@@ -158,17 +162,17 @@ namespace IO_Project
             }
         }
 
-        static int[,] Async(int[,] before, int threadCounter, int iterationCounter)
+        static int[,] Async(int[,] before, int tasks, int iterationCounter)
         {
-            int[,] after = before;
+            int[,] after = new int[before.GetLength(0), before.GetLength(0)];
             for (int i = 0; i < iterationCounter; i++)
             {
-                Task[] tasks = new Task[threadCounter];
-                for (int j = 0; j < threadCounter; j++)
+                Task[] taskList = new Task[tasks];
+                for (int j = 0; j < tasks; j++)
                 {
-                    tasks[j] = Task.Run(() => CalculateAsync(before, after, threadCounter, j));
+                    taskList[j] = Task.Run(() => CalculateAsync(before, after, tasks, j));
                 }
-                Task.WaitAll(tasks);
+                Task.WaitAll(taskList);
             }
 
             return after;
