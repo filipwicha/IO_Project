@@ -33,7 +33,11 @@ namespace IO_Project
             int[,] imageSync;
             int[,] imageASync;
 
-            image = CreateImage(imageSize);
+            /*choose one of two: */
+            image = CreateImage(imageSize);             
+            //image = CreateImageHalf(imageSize);  
+
+            ToImage(image, "new.jpg");
             //sync
             Stopwatch stopWatchSync = new Stopwatch();
             stopWatchSync.Start();
@@ -49,12 +53,68 @@ namespace IO_Project
             Console.WriteLine("Time of executing sync operations:   " + stopWatchSync.Elapsed + " s");
             Console.WriteLine("Time of executing async operations:  " + stopWatchAsync.Elapsed + " s");
 
-            Console.WriteLine("\nBoth images saved to: " + Environment.CurrentDirectory + " as sync.jpg and async.jpg");
-
             ToImage(imageSync, "sync.jpg");
             ToImage(imageSync, "async.jpg");
-
+            Console.WriteLine("\nBoth images saved to: " + Environment.CurrentDirectory + " as sync.jpg and async.jpg");
+            
             Console.ReadKey();
+        }
+
+        static int[,] CalculateSync(int[,] before)
+        {
+            int[,] after = before;
+            int size = before.GetLength(0) - 2; //padding
+            for (int i = 1; i < size - 1; i++)
+            {
+                for (int j = 1; j < size - 1; j++)
+                {
+                    after[i, j] = (int)(before[i, j] * 0.6 + (before[i, j - 1] + before[i, j + 1] + before[i - 1, j] + before[i + 1, j]) * 0.1);
+                }
+            }
+            return after;
+        }
+
+        static int[,] Sync(int[,] before, int iterationCounter)
+        {
+            int[,] after = before;
+
+            for (int i = 0; i < iterationCounter; i++)
+            {
+                after = CalculateSync(after);
+            }
+
+            return after;
+        }
+
+        static void CalculateAsync(int[,] before, int[,] after, int tasks, int task)
+        {
+            int size = before.GetLength(0) - 2; //padding
+            int numberOfLinesPerThread = size / tasks;
+            int numberOfLine = task * numberOfLinesPerThread;
+
+            for (int i = numberOfLine + 1; i < size; i++)
+            {
+                for (int j = 1; j < size - 1; j++)
+                {
+                    after[i, j] = (int)(before[i, j] * 0.6 + (before[i, j - 1] + before[i, j + 1] + before[i - 1, j] + before[i + 1, j]) * 0.1);
+                }
+            }
+        }
+
+        static int[,] Async(int[,] before, int threadCounter, int iterationCounter)
+        {
+            int[,] after = before;
+            for (int i = 0; i < iterationCounter; i++)
+            {
+                Task[] tasks = new Task[threadCounter];
+                for (int j = 0; j < threadCounter; j++)
+                {
+                    tasks[j] = Task.Run(() => CalculateAsync(before, after, threadCounter, j));
+                }
+                Task.WaitAll(tasks);
+            }
+
+            return after;
         }
 
         static void ToImage(int[,] image, string fileName)
@@ -88,7 +148,7 @@ namespace IO_Project
 
             bmp.Save(fileName, ImageFormat.Jpeg);
         }
-        
+
         static int[,] CreateImage(int size)
         {
             int[,] image = new int[1 + size + 1, 1 + size + 1]; //padding
@@ -98,23 +158,22 @@ namespace IO_Project
             {
                 for (int j = 0; j < size + 2; j++)
                 {
-                    image[i, j] = ran.Next(0, 255);
+                    image[i, j] = ran.Next(0,255);
                 }
             }
 
             return image;
         }
 
-        static int[,] CreateImageChess(int size)
+        static int[,] CreateImageHalf(int size)
         {
             int[,] image = new int[1 + size + 1, 1 + size + 1]; //padding
-
-            Random ran = new Random();
+            
             for (int i = 0; i < size + 2; i++)
             {
                 for (int j = 0; j < size + 2; j++)
                 {
-                    if ((i < 512 && j < 512) || (i > 512 && j > 512))
+                    if (i>size/2)
                     {
                         image[i, j] = 0;
                     }
@@ -126,56 +185,6 @@ namespace IO_Project
             }
 
             return image;
-        }
- 
-        static int[,] Sync(int[,] before, int iterationCounter)
-        {
-            int[,] after = new int[before.GetLength(0), before.GetLength(0)];
-            int size = before.GetLength(0) - 2; //padding
-
-            for (int n = 0; n < iterationCounter; n++)
-            {
-                for (int i = 1; i < size - 1; i++)
-                {
-                    for (int j = 1; j < size - 1; j++)
-                    {
-                        after[i, j] = (int)(before[i, j] * 0.6 + (before[i, j - 1] + before[i, j + 1] + before[i - 1, j] + before[i + 1, j]) * 0.1);
-                    }
-                }
-            }
-
-            return after;
-        }
-
-        static void CalculateAsync(int[,] before, int[,] after, int tasks, int task)
-        {
-            int size = before.GetLength(0) - 2; //padding
-            int numberOfLinesPerTask = size / tasks;
-            int numberOfLine = task * numberOfLinesPerTask;
-
-            for (int i = numberOfLine + 1; i < size; i++)
-            {
-                for (int j = 1; j < size - 1; j++)
-                {
-                    after[i, j] = (int)(before[i, j] * 0.6 + (before[i, j - 1] + before[i, j + 1] + before[i - 1, j] + before[i + 1, j]) * 0.1);
-                }
-            }
-        }
-
-        static int[,] Async(int[,] before, int tasks, int iterationCounter)
-        {
-            int[,] after = new int[before.GetLength(0), before.GetLength(0)];
-            for (int i = 0; i < iterationCounter; i++)
-            {
-                Task[] taskList = new Task[tasks];
-                for (int j = 0; j < tasks; j++)
-                {
-                    taskList[j] = Task.Run(() => CalculateAsync(before, after, tasks, j));
-                }
-                Task.WaitAll(taskList);
-            }
-
-            return after;
         }
     }
 }
