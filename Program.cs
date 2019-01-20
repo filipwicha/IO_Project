@@ -34,7 +34,7 @@ namespace IO_Project
             int[,] imageASync;
 
             /*choose one of two: */
-            image = CreateImage(imageSize);             
+            image = CreateImage(imageSize);
             //image = CreateImageHalf(imageSize);  
 
             ToImage(image, "new.jpg");
@@ -43,6 +43,7 @@ namespace IO_Project
             stopWatchSync.Start();
             imageSync = Sync(image, iterationCounter);
             stopWatchSync.Stop();
+            
             //async
             Stopwatch stopWatchAsync = new Stopwatch();
             stopWatchAsync.Start();
@@ -54,9 +55,9 @@ namespace IO_Project
             Console.WriteLine("Time of executing async operations:  " + stopWatchAsync.Elapsed + " s");
 
             ToImage(imageSync, "sync.jpg");
-            ToImage(imageSync, "async.jpg");
+            ToImage(imageASync, "async.jpg");
             Console.WriteLine("\nBoth images saved to: " + Environment.CurrentDirectory + " as sync.jpg and async.jpg");
-            
+
             Console.ReadKey();
         }
 
@@ -77,41 +78,44 @@ namespace IO_Project
         static int[,] Sync(int[,] before, int iterationCounter)
         {
             int[,] after = before;
-
+            int[,] tempAfter = before;
             for (int i = 0; i < iterationCounter; i++)
             {
-                after = CalculateSync(after);
+                after = CalculateSync(tempAfter);
+                tempAfter = after;
             }
-
             return after;
         }
 
-        static void CalculateAsync(int[,] before, int[,] after, int tasks, int task)
+        static Action CalculateAsync(int[,] before, int[,] after, int tasks, int task)
         {
             int size = before.GetLength(0) - 2; //padding
             int numberOfLinesPerThread = size / tasks;
             int numberOfLine = task * numberOfLinesPerThread;
 
-            for (int i = numberOfLine + 1; i < size; i++)
+            for (int i = numberOfLine; i < numberOfLine + numberOfLinesPerThread && i<size-2; i++)
             {
                 for (int j = 1; j < size - 1; j++)
                 {
                     after[i, j] = (int)(before[i, j] * 0.6 + (before[i, j - 1] + before[i, j + 1] + before[i - 1, j] + before[i + 1, j]) * 0.1);
                 }
             }
+            return null;
         }
 
         static int[,] Async(int[,] before, int threadCounter, int iterationCounter)
         {
             int[,] after = before;
+            int[,] beforeTemp = before;
             for (int i = 0; i < iterationCounter; i++)
             {
                 Task[] tasks = new Task[threadCounter];
                 for (int j = 0; j < threadCounter; j++)
                 {
-                    tasks[j] = Task.Run(() => CalculateAsync(before, after, threadCounter, j));
+                    tasks[j] = Task.Run(() => CalculateAsync(beforeTemp, after, threadCounter, j));
                 }
                 Task.WaitAll(tasks);
+                beforeTemp = after;
             }
 
             return after;
@@ -158,7 +162,7 @@ namespace IO_Project
             {
                 for (int j = 0; j < size + 2; j++)
                 {
-                    image[i, j] = ran.Next(0,255);
+                    image[i, j] = ran.Next(0, 255);
                 }
             }
 
@@ -168,12 +172,12 @@ namespace IO_Project
         static int[,] CreateImageHalf(int size)
         {
             int[,] image = new int[1 + size + 1, 1 + size + 1]; //padding
-            
+
             for (int i = 0; i < size + 2; i++)
             {
                 for (int j = 0; j < size + 2; j++)
                 {
-                    if (i>size/2)
+                    if (i > size / 2)
                     {
                         image[i, j] = 0;
                     }
