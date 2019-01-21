@@ -34,8 +34,8 @@ namespace IO_Project
             int[,] imageASync;
 
             /*choose one of two: */
-            image = CreateImage(imageSize);
-            //image = CreateImageHalf(imageSize);  
+            //image = CreateImage(imageSize);
+            image = CreateImageHalf(imageSize);  
 
             ToImage(image, "new.jpg");
             //sync
@@ -58,7 +58,7 @@ namespace IO_Project
             ToImage(imageASync, "async.jpg");
             Console.WriteLine("\nBoth images saved to: " + Environment.CurrentDirectory + " as sync.jpg and async.jpg");
 
-            Console.ReadKey();
+            //Console.ReadKey();
         }
 
         static int[,] CalculateSync(int[,] before)
